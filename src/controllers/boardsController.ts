@@ -1,32 +1,23 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
-import { BoardMember } from "../types/express/board";
 import { AuthRequest } from "../middleware/authMiddleware";
 
 const prisma = new PrismaClient();
-
-// Extend Express Request to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: { id: number }; // extend Request interface globally
-    }
-  }
-}
 
 // ----------------------
 // CREATE Board
 // ----------------------
 export const createBoard = async (req: AuthRequest, res: Response) => {
-  const { name, description } = req.body;
+  const { title, description } = req.body; // title instead of name
   const userId = req.user?.id;
+
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
     const newBoard = await prisma.board.create({
       data: {
-        name,
-        description,
-        ownerId: userId!,
+        title,
+        ownerId: userId,
       },
     });
     res.status(201).json(newBoard);
@@ -37,23 +28,29 @@ export const createBoard = async (req: AuthRequest, res: Response) => {
 };
 
 // ----------------------
-// READ (Get one board)
+// READ Boards for user
 // ----------------------
-export const getBoard = async (req: AuthRequest, res: Response) => {
-  const { boardId } = req.params;
+export const getBoardsForUser = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    const board = await prisma.board.findUnique({
-      where: { id: Number(boardId) },
-      include: { members: true },
+    const boards = await prisma.board.findMany({
+      where: {
+        OR: [
+          { ownerId: userId }, // Boards user owns
+          { members: { some: { id: userId } } }, // Boards user is a member of
+        ],
+      },
+      include: {
+        members: true,
+        tasks: true,
+      },
     });
-
-    if (!board) return res.status(404).json({ error: "Board not found" });
-
-    res.json(board);
+    res.json(boards);
   } catch (error) {
-    console.error("Get board error:", error);
-    res.status(500).json({ error: "Failed to get board" });
+    console.error("Get boards error:", error);
+    res.status(500).json({ error: "Failed to fetch boards" });
   }
 };
 
@@ -62,8 +59,10 @@ export const getBoard = async (req: AuthRequest, res: Response) => {
 // ----------------------
 export const updateBoard = async (req: AuthRequest, res: Response) => {
   const { boardId } = req.params;
-  const { name, description } = req.body;
+  const { title } = req.body;
   const userId = req.user?.id;
+
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
     const board = await prisma.board.findUnique({
@@ -74,21 +73,16 @@ export const updateBoard = async (req: AuthRequest, res: Response) => {
     if (!board) return res.status(404).json({ error: "Board not found" });
 
     const isOwner = board.ownerId === userId;
-    const userIdNum = Number(userId);
+    const isMember = board.members.some((m) => m.id === userId);
 
-    const isMember = board.members.some(
-      (m: BoardMember) => m.userId! === Number(userId)
-    );
-
-    if (!isOwner && !isMember) {
+    if (!isOwner && !isMember)
       return res
         .status(403)
         .json({ error: "Not authorized to update this board" });
-    }
 
     const updatedBoard = await prisma.board.update({
       where: { id: Number(boardId) },
-      data: { name, description },
+      data: { title },
     });
 
     res.json(updatedBoard);
@@ -105,22 +99,18 @@ export const deleteBoard = async (req: AuthRequest, res: Response) => {
   const { boardId } = req.params;
   const userId = req.user?.id;
 
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
   try {
     const board = await prisma.board.findUnique({
       where: { id: Number(boardId) },
     });
 
     if (!board) return res.status(404).json({ error: "Board not found" });
+    if (board.ownerId !== userId)
+      return res.status(403).json({ error: "Not authorized" });
 
-    if (board.ownerId !== userId) {
-      return res
-        .status(403)
-        .json({ error: "Not authorized to delete this board" });
-    }
-
-    await prisma.board.delete({
-      where: { id: Number(boardId) },
-    });
+    await prisma.board.delete({ where: { id: Number(boardId) } });
 
     res.status(204).send();
   } catch (error) {
@@ -140,13 +130,12 @@ export const addBoardMember = async (req: AuthRequest, res: Response) => {
     const board = await prisma.board.findUnique({
       where: { id: Number(boardId) },
     });
-
     if (!board) return res.status(404).json({ error: "Board not found" });
 
-    await prisma.boardMember.create({
+    await prisma.board.update({
+      where: { id: Number(boardId) },
       data: {
-        boardId: Number(boardId),
-        userId: memberId,
+        members: { connect: { id: memberId } }, // Use relation connect
       },
     });
 
@@ -164,10 +153,10 @@ export const removeBoardMember = async (req: AuthRequest, res: Response) => {
   const { boardId, memberId } = req.params;
 
   try {
-    await prisma.boardMember.deleteMany({
-      where: {
-        boardId: Number(boardId),
-        userId: Number(memberId),
+    await prisma.board.update({
+      where: { id: Number(boardId) },
+      data: {
+        members: { disconnect: { id: Number(memberId) } }, // Use relation disconnect
       },
     });
 
@@ -175,5 +164,26 @@ export const removeBoardMember = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error("Remove member error:", error);
     res.status(500).json({ error: "Failed to remove member" });
+  }
+};
+
+// ----------------------
+// GET single board by ID
+// ----------------------
+export const getBoard = async (req: AuthRequest, res: Response) => {
+  const { boardId } = req.params;
+
+  try {
+    const board = await prisma.board.findUnique({
+      where: { id: Number(boardId) },
+      include: { members: true, tasks: true }, // include members and tasks if needed
+    });
+
+    if (!board) return res.status(404).json({ error: "Board not found" });
+
+    res.json(board);
+  } catch (error) {
+    console.error("Get board error:", error);
+    res.status(500).json({ error: "Failed to get board" });
   }
 };

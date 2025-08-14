@@ -6,7 +6,9 @@ import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
 
 import authRoutes from "./routes/authRoutes";
-import { authenticate, AuthRequest } from "./middleware/authMiddleware";
+import boardsRoutes from "./routes/boardsRoutes";
+import tasksRoutes from "./routes/tasksRoutes";
+import { authenticate } from "./middleware/authMiddleware";
 
 dotenv.config();
 
@@ -25,61 +27,24 @@ const io = new SocketIOServer(server, {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  socket.on("taskCreated", (task) => {
-    socket.broadcast.emit("taskCreated", task);
-  });
+  socket.on("taskCreated", (task) =>
+    socket.broadcast.emit("taskCreated", task)
+  );
+  socket.on("taskUpdated", (task) =>
+    socket.broadcast.emit("taskUpdated", task)
+  );
 
-  socket.on("taskUpdated", (task) => {
-    socket.broadcast.emit("taskUpdated", task);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-  });
+  socket.on("disconnect", () => console.log("User disconnected:", socket.id));
 });
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/boards", boardsRoutes); // <- fix prefix for Jest tests
+app.use("/api/tasks", tasksRoutes); // <- register tasks routes
 
+// Health check
 app.get("/", (req: Request, res: Response) => {
   res.send("Project Management API Running");
 });
 
-// Boards API
-app.get("/boards", async (req: Request, res: Response) => {
-  try {
-    const boards = await prisma.board.findMany({
-      include: {
-        tasks: true,
-        members: true,
-      },
-    });
-    res.json(boards);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to fetch boards" });
-  }
-});
-
-app.post("/boards", authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const ownerId = req.userId;
-    if (!ownerId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const { title } = req.body;
-
-    const newBoard = await prisma.board.create({
-      data: { title, ownerId },
-    });
-
-    res.status(201).json(newBoard);
-    io.emit("boardCreated", newBoard);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to create board" });
-  }
-});
-
-export { app, server, io };
+export { app, server, io, prisma };
