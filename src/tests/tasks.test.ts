@@ -101,3 +101,89 @@ describe("Tasks API", () => {
     expect(res.body.message).toBe("Task deleted");
   });
 });
+
+// ---------------- Validation Tests ----------------
+describe("Tasks API Validation", () => {
+  let token: string;
+  let boardId: number;
+
+  beforeAll(async () => {
+    // Create a new user for validation tests
+    const testUser = {
+      name: "Validation User",
+      email: `validationuser${Date.now()}@example.com`,
+      password: "password123",
+    };
+
+    await request(app).post("/api/auth/register").send(testUser);
+    const loginRes = await request(app).post("/api/auth/login").send({
+      email: testUser.email,
+      password: testUser.password,
+    });
+    token = loginRes.body.token;
+
+    // Create a board
+    const boardRes = await request(app)
+      .post("/api/boards")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Validation Board" });
+    boardId = boardRes.body.id;
+  });
+
+  afterAll(async () => {
+    await prisma.task.deleteMany();
+    await prisma.board.deleteMany();
+    await prisma.user.deleteMany({
+      where: { email: { contains: "validationuser" } },
+    });
+    await prisma.$disconnect();
+  });
+
+  it("should reject creating a task without title", async () => {
+    const res = await request(app)
+      .post("/api/tasks")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ boardId });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("should reject creating a task with invalid boardId", async () => {
+    const res = await request(app)
+      .post("/api/tasks")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Invalid Task", boardId: "not-a-number" });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("should reject updating a task with invalid status", async () => {
+    // First create a valid task
+    const taskRes = await request(app)
+      .post("/api/tasks")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Valid Task", boardId });
+
+    const taskId = taskRes.body.id;
+
+    const res = await request(app)
+      .put(`/api/tasks/${taskId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "not-a-valid-status" });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("should create a task successfully with valid input", async () => {
+    const res = await request(app)
+      .post("/api/tasks")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Valid Task", boardId });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.title).toBe("Valid Task");
+  });
+});
