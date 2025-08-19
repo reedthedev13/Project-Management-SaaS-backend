@@ -13,17 +13,16 @@ describe("Boards API", () => {
   let boardId: number;
 
   beforeAll(async () => {
-    // Register and login the user
+    // Register and login user
     await request(app).post("/api/auth/register").send(testUser);
-    const res = await request(app).post("/api/auth/login").send({
+    const loginRes = await request(app).post("/api/auth/login").send({
       email: testUser.email,
       password: testUser.password,
     });
-    token = res.body.token;
+    token = loginRes.body.token;
   });
 
   afterAll(async () => {
-    await prisma.task.deleteMany();
     await prisma.board.deleteMany();
     await prisma.user.deleteMany({ where: { email: testUser.email } });
     await prisma.$disconnect();
@@ -37,7 +36,7 @@ describe("Boards API", () => {
 
     expect(res.statusCode).toBe(201);
     expect(res.body).toHaveProperty("id");
-    expect(res.body).toHaveProperty("title", "Test Board");
+    expect(res.body.title).toBe("Test Board");
     boardId = res.body.id;
   });
 
@@ -57,6 +56,7 @@ describe("Boards API", () => {
       .send({ title: "Updated Board" });
 
     expect(res.statusCode).toBe(200);
+    expect(res.body.title).toBe("Updated Board");
   });
 
   it("should delete the board", async () => {
@@ -64,6 +64,6 @@ describe("Boards API", () => {
       .delete(`/api/boards/${boardId}`)
       .set("Authorization", `Bearer ${token}`);
 
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(204);
   });
 });

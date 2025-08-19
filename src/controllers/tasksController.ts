@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { AuthRequest } from "../middleware/authMiddleware";
 import prisma from "../prisma/prismaClient";
 
@@ -6,16 +6,22 @@ import prisma from "../prisma/prismaClient";
 // GET tasks by board
 // ----------------------
 export const getTasksByBoard = async (req: AuthRequest, res: Response) => {
-  const { boardId } = req.params;
+  const boardId = Number(req.query.boardId);
+
+  if (!boardId || isNaN(boardId)) {
+    return res.status(400).json({ error: "Valid boardId is required" });
+  }
+
   try {
-    const tasks = await prisma.task.findMany({
-      where: { boardId: Number(boardId) },
-      orderBy: { createdAt: "asc" },
-    });
-    res.json(tasks);
-  } catch (error) {
-    console.error("Get tasks error:", error);
-    res.status(500).json({ error: "Failed to fetch tasks" });
+    const board = await prisma.board.findUnique({ where: { id: boardId } });
+    if (!board) return res.status(404).json({ error: "Board not found" });
+
+    const tasks = await prisma.task.findMany({ where: { boardId } });
+
+    return res.status(200).json(tasks);
+  } catch (err) {
+    console.error("Fetch tasks by board error:", err);
+    return res.status(500).json({ error: "Failed to fetch tasks" });
   }
 };
 
@@ -23,18 +29,34 @@ export const getTasksByBoard = async (req: AuthRequest, res: Response) => {
 // CREATE task
 // ----------------------
 export const createTask = async (req: AuthRequest, res: Response) => {
-  const { title, boardId } = req.body;
+  const { title, boardId, description, status, assigneeId } = req.body;
+
+  if (!title || !boardId) {
+    return res.status(400).json({ error: "Title and boardId are required" });
+  }
+
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+
   try {
+    const board = await prisma.board.findUnique({
+      where: { id: Number(boardId) },
+    });
+    if (!board) return res.status(404).json({ error: "Board not found" });
+
     const newTask = await prisma.task.create({
       data: {
         title,
+        description: description || null,
+        status: status || "todo",
         boardId: Number(boardId),
+        assigneeId: assigneeId || null,
       },
     });
-    res.status(201).json(newTask);
+
+    return res.status(201).json(newTask);
   } catch (error) {
     console.error("Create task error:", error);
-    res.status(500).json({ error: "Failed to create task" });
+    return res.status(500).json({ error: "Failed to create task" });
   }
 };
 
@@ -44,6 +66,12 @@ export const createTask = async (req: AuthRequest, res: Response) => {
 export const updateTask = async (req: AuthRequest, res: Response) => {
   const { taskId } = req.params;
   const { title, description, status, assigneeId } = req.body;
+
+  if (!taskId || isNaN(Number(taskId))) {
+    return res.status(400).json({ error: "Invalid taskId" });
+  }
+
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
     const updatedTask = await prisma.task.update({
@@ -55,10 +83,10 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         ...(assigneeId !== undefined && { assigneeId }),
       },
     });
-    res.json(updatedTask);
+    return res.status(200).json(updatedTask);
   } catch (error) {
     console.error("Update task error:", error);
-    res.status(500).json({ error: "Failed to update task" });
+    return res.status(500).json({ error: "Failed to update task" });
   }
 };
 
@@ -67,13 +95,20 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
 // ----------------------
 export const deleteTask = async (req: AuthRequest, res: Response) => {
   const { taskId } = req.params;
+
+  if (!taskId || isNaN(Number(taskId))) {
+    return res.status(400).json({ error: "Invalid taskId" });
+  }
+
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+
   try {
     await prisma.task.delete({
       where: { id: Number(taskId) },
     });
-    res.json({ message: "Task deleted" });
+    return res.status(200).json({ message: "Task deleted" });
   } catch (error) {
     console.error("Delete task error:", error);
-    res.status(500).json({ error: "Failed to delete task" });
+    return res.status(500).json({ error: "Failed to delete task" });
   }
 };

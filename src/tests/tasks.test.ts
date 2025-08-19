@@ -1,6 +1,9 @@
 import request from "supertest";
 import { app } from "../app";
 import prisma from "../prisma/prismaClient";
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env" });
 
 describe("Tasks API", () => {
   const testUser = {
@@ -14,19 +17,37 @@ describe("Tasks API", () => {
   let taskId: number;
 
   beforeAll(async () => {
-    // Register/login user and create a board
+    // Register user
     await request(app).post("/api/auth/register").send(testUser);
-    const res = await request(app).post("/api/auth/login").send({
+
+    // Login user
+    const loginRes = await request(app).post("/api/auth/login").send({
       email: testUser.email,
       password: testUser.password,
     });
-    token = res.body.token;
 
+    console.log("Login response:", loginRes.body);
+
+    token = loginRes.body.token;
+    if (!token) throw new Error("Login failed: token not returned");
+
+    // Create board
     const boardRes = await request(app)
       .post("/api/boards")
       .set("Authorization", `Bearer ${token}`)
       .send({ title: "Task Board" });
+
     boardId = boardRes.body.id;
+    if (!boardId) throw new Error("Board creation failed");
+
+    // Create one initial task to ensure fetch works
+    const taskRes = await request(app)
+      .post("/api/tasks")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Initial Task", boardId });
+
+    taskId = taskRes.body.id;
+    if (!taskId) throw new Error("Initial task creation failed");
   });
 
   afterAll(async () => {
@@ -44,7 +65,7 @@ describe("Tasks API", () => {
 
     expect(res.statusCode).toBe(201);
     expect(res.body).toHaveProperty("id");
-    expect(res.body).toHaveProperty("title", "Test Task");
+    expect(res.body.title).toBe("Test Task");
     taskId = res.body.id;
   });
 
@@ -53,7 +74,10 @@ describe("Tasks API", () => {
       .get(`/api/tasks?boardId=${boardId}`)
       .set("Authorization", `Bearer ${token}`);
 
+    console.log("Fetch tasks response:", res.body);
+
     expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -65,6 +89,7 @@ describe("Tasks API", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.title).toBe("Updated Task");
+    expect(res.body.status).toBe("in-progress");
   });
 
   it("should delete a task", async () => {
@@ -73,5 +98,6 @@ describe("Tasks API", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(res.statusCode).toBe(200);
+    expect(res.body.message).toBe("Task deleted");
   });
 });

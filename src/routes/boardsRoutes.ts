@@ -3,11 +3,8 @@ import { authenticate } from "../middleware/authMiddleware";
 import {
   createBoard,
   getBoardsForUser,
-  getBoard,
   updateBoard,
   deleteBoard,
-  addBoardMember,
-  removeBoardMember,
 } from "../controllers/boardsController";
 
 const router = Router();
@@ -16,7 +13,7 @@ const router = Router();
 router.get("/", authenticate, getBoardsForUser);
 
 // Get single board by ID
-router.get("/:boardId", authenticate, getBoard);
+router.get("/:boardId", authenticate);
 
 // Create new board
 router.post("/", authenticate, createBoard);
@@ -28,9 +25,9 @@ router.put("/:boardId", authenticate, updateBoard);
 router.delete("/:boardId", authenticate, deleteBoard);
 
 // Add member
-router.post("/:boardId/members", authenticate, addBoardMember);
+router.post("/:boardId/members", authenticate);
 
 // Remove member
-router.delete("/:boardId/members/:memberId", authenticate, removeBoardMember);
+router.delete("/:boardId/members/:memberId", authenticate);
 
 export default router;
