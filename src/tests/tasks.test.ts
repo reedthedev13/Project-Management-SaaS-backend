@@ -108,13 +108,13 @@ describe("Tasks API Validation", () => {
   let boardId: number;
 
   beforeAll(async () => {
-    // Create a new user for validation tests
     const testUser = {
       name: "Validation User",
       email: `validationuser${Date.now()}@example.com`,
       password: "password123",
     };
 
+    // Register and login user
     await request(app).post("/api/auth/register").send(testUser);
     const loginRes = await request(app).post("/api/auth/login").send({
       email: testUser.email,
@@ -160,7 +160,6 @@ describe("Tasks API Validation", () => {
   });
 
   it("should reject updating a task with invalid status", async () => {
-    // First create a valid task
     const taskRes = await request(app)
       .post("/api/tasks")
       .set("Authorization", `Bearer ${token}`)

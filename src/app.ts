@@ -9,6 +9,7 @@ import authRoutes from "./routes/authRoutes";
 import boardsRoutes from "./routes/boardsRoutes";
 import tasksRoutes from "./routes/tasksRoutes";
 import { authenticate } from "./middleware/authMiddleware";
+import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
 
@@ -39,12 +40,17 @@ io.on("connection", (socket) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/boards", boardsRoutes); // <- fix prefix for Jest tests
-app.use("/api/tasks", tasksRoutes); // <- register tasks routes
+app.use("/api/boards", boardsRoutes);
+app.use("/api/tasks", tasksRoutes);
 
 // Health check
 app.get("/", (req: Request, res: Response) => {
   res.send("Project Management API Running");
 });
+
+// ----------------------
+// CENTRALIZED ERROR HANDLER
+// ----------------------
+app.use(errorHandler);
 
 export { app, server, io, prisma };
