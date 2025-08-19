@@ -6,6 +6,11 @@ import {
   updateBoard,
   deleteBoard,
 } from "../controllers/boardsController";
+import { validate } from "../middleware/validators";
+import {
+  createBoardSchema,
+  updateBoardSchema,
+} from "../middleware/boardsSchema";
 
 const router = Router();
 
@@ -15,11 +20,11 @@ router.get("/", authenticate, getBoardsForUser);
 // Get single board by ID
 router.get("/:boardId", authenticate);
 
-// Create new board
-router.post("/", authenticate, createBoard);
+// Create new board with validation
+router.post("/", authenticate, validate(createBoardSchema), createBoard);
 
-// Update board
-router.put("/:boardId", authenticate, updateBoard);
+// Update board with validation
+router.put("/:boardId", authenticate, validate(updateBoardSchema), updateBoard);
 
 // Delete board
 router.delete("/:boardId", authenticate, deleteBoard);

@@ -67,3 +67,69 @@ describe("Boards API", () => {
     expect(res.statusCode).toBe(204);
   });
 });
+
+// ---------------- Validation Tests ----------------
+describe("Boards API Validation", () => {
+  let token: string;
+
+  beforeAll(async () => {
+    const testUser = {
+      name: "Validation Board User",
+      email: `validationboarduser${Date.now()}@example.com`,
+      password: "password123",
+    };
+
+    await request(app).post("/api/auth/register").send(testUser);
+    const loginRes = await request(app).post("/api/auth/login").send({
+      email: testUser.email,
+      password: testUser.password,
+    });
+    token = loginRes.body.token;
+  });
+
+  afterAll(async () => {
+    await prisma.board.deleteMany();
+    await prisma.user.deleteMany({
+      where: { email: { contains: "validationboarduser" } },
+    });
+    await prisma.$disconnect();
+  });
+
+  it("should reject creating a board without title", async () => {
+    const res = await request(app)
+      .post("/api/boards")
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("should reject updating a board without a title", async () => {
+    // First create a valid board
+    const boardRes = await request(app)
+      .post("/api/boards")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Valid Board" });
+
+    const boardId = boardRes.body.id;
+
+    const res = await request(app)
+      .put(`/api/boards/${boardId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("should create a board successfully with valid input", async () => {
+    const res = await request(app)
+      .post("/api/boards")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Another Valid Board" });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.title).toBe("Another Valid Board");
+  });
+});

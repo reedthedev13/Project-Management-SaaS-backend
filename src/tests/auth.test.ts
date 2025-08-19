@@ -10,6 +10,30 @@ describe("Auth API", () => {
 
   let token: string;
 
+  // ----------------- Validation Tests -----------------
+  it("should reject registration with invalid email", async () => {
+    const res = await request(app).post("/api/auth/register").send({
+      name: "Bad Email",
+      email: "not-an-email",
+      password: "password123",
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("should reject registration with short password", async () => {
+    const res = await request(app)
+      .post("/api/auth/register")
+      .send({
+        name: "Short Password",
+        email: `shortpass${Date.now()}@example.com`,
+        password: "123",
+      });
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  // ----------------- Existing Tests -----------------
   it("should register a new user", async () => {
     const res = await request(app).post("/api/auth/register").send(testUser);
     console.log(res.body);
@@ -30,7 +54,7 @@ describe("Auth API", () => {
 
   it("should return current user data with valid token", async () => {
     const res = await request(app)
-      .get("/api/auth/me") // <== added /api here
+      .get("/api/auth/me")
       .set("Authorization", `Bearer ${token}`);
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty("email", testUser.email);
@@ -38,7 +62,7 @@ describe("Auth API", () => {
 
   it("should reject invalid token", async () => {
     const res = await request(app)
-      .get("/api/auth/me") // <== added /api here
+      .get("/api/auth/me")
       .set("Authorization", "Bearer invalidtoken");
     expect(res.statusCode).toBe(401);
   });
