@@ -13,12 +13,14 @@ export const getTasksByBoard = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const board = await prisma.board.findUnique({ where: { id: boardId } });
+    const board = await prisma.board.findUnique({
+      where: { id: boardId },
+      include: { tasks: true }, // <-- include tasks with their completed status
+    });
     if (!board) return res.status(404).json({ error: "Board not found" });
 
-    const tasks = await prisma.task.findMany({ where: { boardId } });
-
-    return res.status(200).json(tasks);
+    // Return tasks directly with their completed state
+    return res.status(200).json(board.tasks);
   } catch (err) {
     console.error("Fetch tasks by board error:", err);
     return res.status(500).json({ error: "Failed to fetch tasks" });
@@ -63,29 +65,22 @@ export const createTask = async (req: AuthRequest, res: Response) => {
 // ----------------------
 // UPDATE task
 // ----------------------
+// controllers/tasksController.ts
 export const updateTask = async (req: AuthRequest, res: Response) => {
   const { taskId } = req.params;
-  const { title, description, status, assigneeId } = req.body;
+  const { completed } = req.body;
 
-  if (!taskId || isNaN(Number(taskId))) {
+  if (!taskId || isNaN(Number(taskId)))
     return res.status(400).json({ error: "Invalid taskId" });
-  }
-
-  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
     const updatedTask = await prisma.task.update({
       where: { id: Number(taskId) },
-      data: {
-        ...(title && { title }),
-        ...(description && { description }),
-        ...(status && { status }),
-        ...(assigneeId !== undefined && { assigneeId }),
-      },
+      data: { completed },
     });
     return res.status(200).json(updatedTask);
   } catch (error) {
-    console.error("Update task error:", error);
+    console.error("Update task error:", error); // <- this is likely why you see 500
     return res.status(500).json({ error: "Failed to update task" });
   }
 };

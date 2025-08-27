@@ -11,6 +11,9 @@ export const getBoardsForUser = async (req: AuthRequest, res: Response) => {
   try {
     const boards = await prisma.board.findMany({
       where: { ownerId: req.userId },
+      include: {
+        tasks: true,
+      },
     });
     return res.status(200).json(boards);
   } catch (error) {
