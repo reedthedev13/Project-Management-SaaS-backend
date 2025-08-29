@@ -37,6 +37,7 @@ export const createBoard = async (req: AuthRequest, res: Response) => {
         title,
         ownerId: req.userId,
       },
+      include: { tasks: true },
     });
     return res.status(201).json(board);
   } catch (error) {
@@ -79,9 +80,16 @@ export const deleteBoard = async (req: AuthRequest, res: Response) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    await prisma.board.delete({
-      where: { id: Number(boardId) },
+    const id = Number(boardId);
+
+    await prisma.task.deleteMany({
+      where: { boardId: id },
     });
+
+    await prisma.board.delete({
+      where: { id },
+    });
+
     return res.status(204).send();
   } catch (error) {
     console.error("Delete board error:", error);
