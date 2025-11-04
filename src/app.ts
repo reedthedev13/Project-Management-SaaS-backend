@@ -13,8 +13,25 @@ import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
 
+const allowedOrigins = [
+  "http://localhost:3000", // local frontend
+  "https://your-frontend.vercel.app", // production frontend
+];
+
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // allow requests with no origin (like Postman)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true, // if you use cookies or auth headers
+  })
+);
 app.use(express.json());
 
 const prisma = new PrismaClient();
