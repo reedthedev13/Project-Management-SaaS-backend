@@ -14,8 +14,8 @@ import { errorHandler } from "./middleware/errorHandler";
 dotenv.config();
 
 const allowedOrigins = [
-  "http://localhost:3000", // local frontend
-  "https://project-management-app-roan.vercel.app", // production frontend
+  "http://localhost:3000",
+  "https://project-management-app-roan.vercel.app",
 ];
 
 const app = express();
