@@ -8,21 +8,13 @@ import { PrismaClient } from "@prisma/client";
 import authRoutes from "./routes/authRoutes";
 import boardsRoutes from "./routes/boardsRoutes";
 import tasksRoutes from "./routes/tasksRoutes";
-import userRoutes from "./routes/userRoutes";
+import userRoutes from "./routes/userRoutes"; // ✅ add this
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
 
 const app = express();
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "https://project-management-app-roan.vercel.app",
-    ],
-    credentials: true,
-  })
-);
+app.use(cors());
 app.use(express.json());
 
 const prisma = new PrismaClient();
@@ -45,7 +37,7 @@ io.on("connection", (socket) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/boards", boardsRoutes);
 app.use("/api/tasks", tasksRoutes);
-app.use("/api/users", userRoutes);
+app.use("/api/users", userRoutes); // ✅ mount users here
 
 // Health check
 app.get("/", (req, res) => res.send("Project Management API Running"));
