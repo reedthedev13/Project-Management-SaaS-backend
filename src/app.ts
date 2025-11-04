@@ -22,14 +22,13 @@ const app = express();
 app.use(
   cors({
     origin: (origin, callback) => {
-      // allow requests with no origin (like Postman)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       return callback(new Error("Not allowed by CORS"));
     },
-    credentials: true, // if you use cookies or auth headers
+    credentials: true,
   })
 );
 app.use(express.json());
