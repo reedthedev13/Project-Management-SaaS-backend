@@ -15,7 +15,7 @@ dotenv.config();
 
 const allowedOrigins = [
   "http://localhost:3000", // local frontend
-  "https://your-frontend.vercel.app", // production frontend
+  "https://project-management-app-roan.vercel.app", // production frontend
 ];
 
 const app = express();
