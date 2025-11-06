@@ -1,9 +1,8 @@
-// server/src/services/boardService.ts
 import prisma from "../prisma/prismaClient";
 
 interface CreateBoardInput {
   title: string;
-  userId: number; // passed from frontend/auth context
+  userId: number;
 }
 
 interface UpdateBoardInput {
