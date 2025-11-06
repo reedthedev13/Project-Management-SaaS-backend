@@ -11,14 +11,12 @@ export const getBoardsForUser = async (req: AuthRequest, res: Response) => {
   try {
     const boards = await prisma.board.findMany({
       where: { ownerId: req.userId },
-      include: {
-        tasks: true,
-      },
+      include: { tasks: true },
     });
-    return res.status(200).json(boards);
-  } catch (error) {
-    console.error("Get boards error:", error);
-    return res.status(500).json({ error: "Failed to fetch boards" });
+    res.status(200).json(boards);
+  } catch (err) {
+    console.error("Get boards error:", err);
+    res.status(500).json({ error: "Failed to fetch boards" });
   }
 };
 
@@ -28,21 +26,18 @@ export const getBoardsForUser = async (req: AuthRequest, res: Response) => {
 export const createBoard = async (req: AuthRequest, res: Response) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
 
-  const { title } = req.body;
+  const { title } = req.body as { title?: string };
   if (!title) return res.status(400).json({ error: "Title is required" });
 
   try {
     const board = await prisma.board.create({
-      data: {
-        title,
-        ownerId: req.userId,
-      },
+      data: { title, ownerId: req.userId },
       include: { tasks: true },
     });
-    return res.status(201).json(board);
-  } catch (error) {
-    console.error("Create board error:", error);
-    return res.status(500).json({ error: "Failed to create board" });
+    res.status(201).json(board);
+  } catch (err) {
+    console.error("Create board error:", err);
+    res.status(500).json({ error: "Failed to create board" });
   }
 };
 
@@ -50,22 +45,23 @@ export const createBoard = async (req: AuthRequest, res: Response) => {
 // UPDATE board
 // ----------------------
 export const updateBoard = async (req: AuthRequest, res: Response) => {
-  const { boardId } = req.params;
-  const { title } = req.body;
-
-  if (!boardId || isNaN(Number(boardId)))
-    return res.status(400).json({ error: "Invalid boardId" });
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+
+  const boardId = Number(req.params.boardId);
+  const { title } = req.body as { title?: string };
+
+  if (!boardId || isNaN(boardId))
+    return res.status(400).json({ error: "Invalid boardId" });
 
   try {
     const board = await prisma.board.update({
-      where: { id: Number(boardId) },
+      where: { id: boardId },
       data: { ...(title && { title }) },
     });
-    return res.status(200).json(board);
-  } catch (error) {
-    console.error("Update board error:", error);
-    return res.status(500).json({ error: "Failed to update board" });
+    res.status(200).json(board);
+  } catch (err) {
+    console.error("Update board error:", err);
+    res.status(500).json({ error: "Failed to update board" });
   }
 };
 
@@ -73,26 +69,22 @@ export const updateBoard = async (req: AuthRequest, res: Response) => {
 // DELETE board
 // ----------------------
 export const deleteBoard = async (req: AuthRequest, res: Response) => {
-  const { boardId } = req.params;
-
-  if (!boardId || isNaN(Number(boardId)))
-    return res.status(400).json({ error: "Invalid boardId" });
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
 
+  const boardId = Number(req.params.boardId);
+  if (!boardId || isNaN(boardId))
+    return res.status(400).json({ error: "Invalid boardId" });
+
   try {
-    const id = Number(boardId);
+    // Delete all tasks for this board
+    await prisma.task.deleteMany({ where: { boardId } });
 
-    await prisma.task.deleteMany({
-      where: { boardId: id },
-    });
+    // Delete the board
+    await prisma.board.delete({ where: { id: boardId } });
 
-    await prisma.board.delete({
-      where: { id },
-    });
-
-    return res.status(204).send();
-  } catch (error) {
-    console.error("Delete board error:", error);
-    return res.status(500).json({ error: "Failed to delete board" });
+    res.status(204).send();
+  } catch (err) {
+    console.error("Delete board error:", err);
+    res.status(500).json({ error: "Failed to delete board" });
   }
 };

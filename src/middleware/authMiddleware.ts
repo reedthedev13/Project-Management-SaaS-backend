@@ -5,6 +5,11 @@ const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 export interface AuthRequest extends Request {
   userId?: number;
+  userEmail?: string;
+  userName?: string;
+  body: any;
+  params: any;
+  query: any;
 }
 
 export const authenticate = (

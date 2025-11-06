@@ -7,19 +7,19 @@ import prisma from "../prisma/prismaClient";
 // ----------------------
 export const getTasksByBoard = async (req: AuthRequest, res: Response) => {
   const boardId = Number(req.query.boardId);
-
   if (!boardId || isNaN(boardId)) {
     return res.status(400).json({ error: "Valid boardId is required" });
   }
 
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+
   try {
     const board = await prisma.board.findUnique({
       where: { id: boardId },
-      include: { tasks: true }, // <-- include tasks with their completed status
+      include: { tasks: true },
     });
     if (!board) return res.status(404).json({ error: "Board not found" });
 
-    // Return tasks directly with their completed state
     return res.status(200).json(board.tasks);
   } catch (err) {
     console.error("Fetch tasks by board error:", err);
@@ -31,13 +31,13 @@ export const getTasksByBoard = async (req: AuthRequest, res: Response) => {
 // CREATE task
 // ----------------------
 export const createTask = async (req: AuthRequest, res: Response) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+
   const { title, boardId, description, status, assigneeId } = req.body;
 
   if (!title || !boardId) {
     return res.status(400).json({ error: "Title and boardId are required" });
   }
-
-  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
     const board = await prisma.board.findUnique({
@@ -65,22 +65,30 @@ export const createTask = async (req: AuthRequest, res: Response) => {
 // ----------------------
 // UPDATE task
 // ----------------------
-// controllers/tasksController.ts
 export const updateTask = async (req: AuthRequest, res: Response) => {
-  const { taskId } = req.params;
-  const { completed } = req.body;
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
 
-  if (!taskId || isNaN(Number(taskId)))
+  const { taskId } = req.params;
+  const { completed, title, description, status, assigneeId } = req.body;
+
+  if (!taskId || isNaN(Number(taskId))) {
     return res.status(400).json({ error: "Invalid taskId" });
+  }
 
   try {
     const updatedTask = await prisma.task.update({
       where: { id: Number(taskId) },
-      data: { completed },
+      data: {
+        ...(completed !== undefined && { completed }),
+        ...(title && { title }),
+        ...(description && { description }),
+        ...(status && { status }),
+        ...(assigneeId && { assigneeId }),
+      },
     });
     return res.status(200).json(updatedTask);
   } catch (error) {
-    console.error("Update task error:", error); // <- this is likely why you see 500
+    console.error("Update task error:", error);
     return res.status(500).json({ error: "Failed to update task" });
   }
 };
@@ -89,13 +97,12 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
 // DELETE task
 // ----------------------
 export const deleteTask = async (req: AuthRequest, res: Response) => {
-  const { taskId } = req.params;
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
 
+  const { taskId } = req.params;
   if (!taskId || isNaN(Number(taskId))) {
     return res.status(400).json({ error: "Invalid taskId" });
   }
-
-  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
     await prisma.task.delete({

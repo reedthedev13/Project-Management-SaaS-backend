@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
@@ -26,9 +26,10 @@ export const me = async (req: AuthRequest, res: Response) => {
 };
 
 // POST /api/auth/register
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: AuthRequest, res: Response) => {
   try {
     const { name, email, password } = req.body;
+
     if (!name || !email || !password)
       return res.status(400).json({ error: "Missing fields" });
 
@@ -52,7 +53,7 @@ export const register = async (req: Request, res: Response) => {
       expiresIn: "7d",
     });
 
-    return res.status(201).json({ user: newUser, token });
+    res.status(201).json({ user: newUser, token });
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "Server error" });
@@ -60,9 +61,10 @@ export const register = async (req: Request, res: Response) => {
 };
 
 // POST /api/auth/login
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: AuthRequest, res: Response) => {
   try {
     const { email, password } = req.body;
+
     if (!email || !password)
       return res.status(400).json({ error: "Missing fields" });
 
