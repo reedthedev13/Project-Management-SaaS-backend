@@ -13,24 +13,27 @@ import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://project-management-app-roan.vercel.app",
-];
-
 const app = express();
+
+// Get frontend URL from environment variable or fallback
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+
+      if (origin === FRONTEND_URL) {
         return callback(null, true);
       }
+
+      // Otherwise block
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
   })
 );
+
 app.use(express.json());
 
 const prisma = new PrismaClient();
