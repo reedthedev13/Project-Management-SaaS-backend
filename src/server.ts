@@ -8,9 +8,7 @@ import tasksRoutes from "./routes/tasksRoutes";
 import userRoutes from "./routes/userRoutes";
 import { errorHandler } from "./middleware/errorHandler";
 
-const envFile =
-  process.env.NODE_ENV === "production" ? ".env.production" : ".env.local";
-dotenv.config({ path: envFile });
+dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
