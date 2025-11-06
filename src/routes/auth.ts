@@ -43,7 +43,7 @@ router.post("/login", async (req, res) => {
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    console.log("Found user:", user); // log what we find in DB
+    console.log("Found user:", user);
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
     const validPassword = await bcrypt.compare(password, user.passwordHash);
