@@ -27,22 +27,28 @@ const app = express();
 // src/app.ts
 
 const allowedOrigins = [
-  "http://localhost:3000", // local dev
-  process.env.FRONTEND_URL || "", // production frontend
+  "http://localhost:3000",
+  process.env.FRONTEND_URL || "",
 ];
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Requests from Postman, curl, or server-to-server may have no origin
-      if (!origin) return callback(null, true);
+    origin: function (origin, callback) {
+      if (!origin) {
+        // allow requests like Postman or server-to-server
+        return callback(null, true);
+      }
 
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-
-      console.warn("Blocked by CORS:", origin);
-      return callback(new Error("Not allowed by CORS"));
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.warn("Blocked by CORS:", origin);
+        return callback(new Error("Not allowed by CORS"));
+      }
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
